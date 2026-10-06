@@ -1,0 +1,708 @@
+<meta charset="utf-8">
+<title>Early-Onset Cancer Trends</title>
+<meta name="description" content="Early- vs late-onset cancer incidence (ECIS) and mortality (WHO) trends by site.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,600&display=swap">
+<style>
+  :root {
+    --bg: #f4f6f8; --surface: #ffffff; --surface-2: #eceff3; --ink: #14181d; --ink-2: #4b5560; --muted: #67707b;
+    --hair: #e1e5ea; --axis: #c3c9d0; --focus: #2a78d6;
+    --inc: #2a78d6; --mort: #eb6834; --ref: #8d949d;
+    --heat: #000080,#0000ff,#0080ff,#00ffff,#80ff80,#ffff00,#ff8000,#ff0000,#800000; --lex-hl: #ffffff;
+    --font-ui: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --font-display: "Source Serif 4", Georgia, "Times New Roman", serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --bg: #0f1113; --surface: #181b1e; --surface-2: #22262a; --ink: #eef1f4; --ink-2: #b7bec7; --muted: #949ca6;
+      --hair: #2a2f35; --axis: #3d434a; --focus: #3987e5;
+      --inc: #3987e5; --mort: #d95926; --ref: #8a929c;
+      --heat: #000080,#0000ff,#0080ff,#00ffff,#80ff80,#ffff00,#ff8000,#ff0000,#800000; --lex-hl: #ffffff;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #0f1113; --surface: #181b1e; --surface-2: #22262a; --ink: #eef1f4; --ink-2: #b7bec7; --muted: #949ca6;
+    --hair: #2a2f35; --axis: #3d434a; --focus: #3987e5;
+    --inc: #3987e5; --mort: #d95926; --ref: #8a929c;
+      --heat: #000080,#0000ff,#0080ff,#00ffff,#80ff80,#ffff00,#ff8000,#ff0000,#800000; --lex-hl: #ffffff;
+  }
+
+  body { background: var(--bg); color: var(--ink); font-family: var(--font-ui); font-size: 13px; line-height: 1.4; }
+  .wrap { max-width: 1240px; margin: 0 auto; padding-inline: 20px; padding-block: 16px 40px; display: grid; gap: 16px; }
+  h1, h2 { margin: 0; text-wrap: balance; }
+  h1 { font-family: var(--font-display); font-weight: 600; font-size: clamp(20px, 2.4vw, 25px); line-height: 1.15; letter-spacing: -0.01em; }
+  h2 { font-size: 13.5px; font-weight: 600; }
+  p { margin: 0; }
+  .eyebrow { font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+  .head { display: grid; gap: 3px; }
+  .sub { color: var(--ink-2); max-width: 90ch; font-size: 12.5px; }
+  .hint { color: var(--muted); font-size: 12px; }
+  .num, .tick, .t-val, td { font-variant-numeric: tabular-nums; }
+
+  .controls { display: flex; flex-wrap: wrap; align-items: end; gap: 8px 12px; }
+  .field { display: grid; gap: 2px; }
+  .field > span { font-size: 11px; color: var(--muted); font-weight: 500; }
+  select { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--axis); border-radius: 6px; padding: 4px 26px 4px 8px; min-width: 150px; max-width: 100%; font-size: 12.5px; }
+  .seg { display: inline-flex; background: var(--surface-2); border-radius: 7px; padding: 2px; gap: 2px; }
+  .seg button { font: inherit; font-size: 12.5px; font-weight: 500; color: var(--ink-2); background: transparent; border: 0; border-radius: 5px; padding: 3px 10px; cursor: pointer; }
+  .seg button[aria-checked="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,0.12); }
+  .seg button:disabled { color: var(--axis); cursor: not-allowed; }
+  .match { font-size: 11.5px; color: var(--ink-2); flex: 1 1 260px; }
+  .flag { display: inline-block; font-size: 12px; font-weight: 500; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--axis); margin-right: 6px; }
+  :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+  section { display: grid; gap: 8px; }
+  .sec-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 24px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--ink-2); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend svg { flex: none; overflow: visible; }
+
+  .tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+  .tile { background: var(--surface); border: 1px solid var(--hair); border-radius: 7px; padding: 6px 10px; display: grid; gap: 1px; align-content: start; }
+  .t-label { font-size: 11px; color: var(--ink-2); font-weight: 500; display: flex; align-items: center; gap: 6px; }
+  .sw { width: 9px; height: 9px; border-radius: 2px; flex: none; }
+  .t-val { font-size: 17px; font-weight: 600; line-height: 1.25; display: flex; align-items: center; flex-wrap: wrap; gap: 2px 8px; }
+  .t-unit { font-size: 11px; font-weight: 400; color: var(--muted); margin-left: -6px; }
+  .t-ci { font-size: 10.5px; color: var(--muted); }
+  .nowrap { white-space: nowrap; }
+  .chip { font-size: 10.5px; font-weight: 500; padding: 0 7px; border-radius: 999px; background: var(--surface-2); color: var(--ink-2); line-height: 1.6; }
+  .chip-up, .chip-down { color: var(--ink); }
+
+  /* tiles and chart cards share one 4-column grid; subgrid keeps both section headers on one row */
+  .chart-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px 10px; align-items: start; }
+  .chart-row > section { grid-column: span 2; grid-row: span 2; display: grid; grid-template-columns: subgrid; grid-template-rows: subgrid; gap: 8px 10px; min-width: 0; }
+  .chart-row .sec-head { grid-column: 1 / -1; align-self: end; }
+  .cap-sub { font-weight: 400; color: var(--muted); font-size: 11px; }
+  .span-all { grid-column: 1 / -1; }
+  .captbl table { min-width: 0; font-size: 12.5px; }
+  .captbl th, .captbl td { padding: 5px 8px; }
+  .captbl td.best, .captbl td b { font-weight: 600; color: var(--ink); }
+  .grid2 { grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; gap: 10px; }
+  @media (max-width: 900px) {
+    .tiles, .chart-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .chart-row > section + section .sec-head { padding-top: 14px; }
+  }
+  @media (max-width: 480px) {
+    .tiles, .chart-row { grid-template-columns: minmax(0, 1fr); }
+    .chart-row > section { grid-column: span 1; }
+  }
+  .card { background: var(--surface); border: 1px solid var(--hair); border-radius: 8px; padding: 8px 10px 4px; margin: 0; min-width: 0; }
+  figcaption { font-size: 12px; font-weight: 600; margin-bottom: 2px; }
+  .chart { position: relative; }
+  .chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+  .tick { font-size: 10.5px; fill: var(--muted); }
+  .endlab { font-size: 10.5px; font-weight: 500; }
+  .empty { color: var(--muted); padding: 40px 0; text-align: center; }
+  .tip { position: absolute; top: 6px; pointer-events: none; background: var(--surface); border: 1px solid var(--axis); border-radius: 8px;
+         padding: 8px 10px; font-size: 12.5px; box-shadow: 0 4px 14px rgba(0,0,0,0.12); min-width: 170px; z-index: 2; }
+  .tip b { display: block; margin-bottom: 4px; }
+  .tip .row { display: grid; grid-template-columns: 10px auto 1fr; align-items: center; gap: 6px; white-space: nowrap; }
+  .tip .row .v { text-align: right; font-variant-numeric: tabular-nums; }
+
+  .lex { position: relative; }
+  .lex svg { display: block; width: 100%; height: auto; overflow: visible; }
+  .lex rect { stroke: var(--surface); stroke-width: 1; }
+  .lex rect.hl { stroke: var(--lex-hl); stroke-width: 2; filter: drop-shadow(0 0 1.5px #000); }
+  .lex svg.thin rect { stroke-width: 0.4; }
+  .lex svg.thin rect.hl { stroke-width: 1.5; }
+  .lex svg.tiny rect { stroke: none; }
+  .lex svg.tiny rect.hl { stroke: var(--lex-hl); stroke-width: 1.5; }
+  .lex .tick { font-size: 9px; }
+  .lex-head { display: flex; flex-wrap: wrap; align-items: end; gap: 6px 16px; }
+  .ramp { display: inline-grid; grid-template-columns: auto 160px auto; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .ramp i { height: 9px; border-radius: 2px; }
+  details.card { padding: 8px 12px; }
+  summary { cursor: pointer; font-weight: 600; }
+  .tbl-wrap { overflow-x: auto; margin-top: 10px; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 13px; }
+  th, td { padding: 6px 10px; border-bottom: 1px solid var(--hair); text-align: right; white-space: nowrap; }
+  th:first-child, td:first-child { text-align: left; }
+  th { font-weight: 600; color: var(--ink-2); font-size: 12px; }
+  td small { display: block; color: var(--muted); font-size: 11px; }
+
+  .notes { color: var(--ink-2); font-size: 12px; max-width: 90ch; }
+  .notes p + p { margin-top: 8px; }
+  .notes code { font-size: 12px; background: var(--surface-2); padding: 1px 5px; border-radius: 4px; }
+  a { color: var(--focus); }
+</style>
+
+<div class="wrap">
+  <header class="head">
+    <p class="eyebrow">Eu40_APC · ECIS incidence · WHO mortality</p>
+    <h1>Early-onset cancer trends</h1>
+    <p class="sub" id="sub"></p>
+  </header>
+
+  <div class="controls" role="group" aria-label="Filters">
+    <label class="field"><span>Country</span><select id="f-country"></select></label>
+    <label class="field"><span>Cancer site</span><select id="f-site"></select></label>
+    <div class="field"><span id="sex-label">Sex</span>
+      <div class="seg" role="radiogroup" aria-labelledby="sex-label" id="f-sex">
+        <button type="button" role="radio" id="sex-0" data-sex="0">Both</button>
+        <button type="button" role="radio" id="sex-1" data-sex="1">Male</button>
+        <button type="button" role="radio" id="sex-2" data-sex="2">Female</button>
+      </div>
+    </div>
+    <div class="field"><span id="scale-label">Scale</span>
+      <div class="seg" role="radiogroup" aria-labelledby="scale-label" id="f-scale">
+        <button type="button" role="radio" id="scale-log" data-scale="log">Log</button>
+        <button type="button" role="radio" id="scale-lin" data-scale="lin">Linear</button>
+      </div>
+    </div>
+    <div class="field"><span id="line-label">Line</span>
+      <div class="seg" role="radiogroup" aria-labelledby="line-label" id="f-line">
+        <button type="button" role="radio" id="line-smooth" data-line="smooth">Smoothed</button>
+        <button type="button" role="radio" id="line-trend" data-line="trend">Trend</button>
+        <button type="button" role="radio" id="line-both" data-line="both">Both</button>
+      </div>
+    </div>
+    <p class="match" id="match"></p>
+  </div>
+  <p class="hint" id="status" role="status" hidden></p>
+
+  <section aria-labelledby="h-apc">
+    <div class="sec-head"><h2 id="h-apc">Annual percent change</h2>
+      <p class="hint">Weighted log-linear trend over each series' full period</p></div>
+    <div class="tiles" id="tiles"></div>
+  </section>
+
+  <div class="chart-row">
+  <section aria-labelledby="h-rates">
+    <div class="sec-head"><h2 id="h-rates">Annual rates per 100,000</h2>
+      <div class="legend">
+        <span><svg width="26" height="10" aria-hidden="true"><line x1="0" y1="5" x2="26" y2="5" style="stroke:var(--inc)" stroke-width="2"/><circle cx="13" cy="5" r="3" style="fill:var(--inc)"/></svg>Incidence</span>
+        <span><svg width="26" height="10" aria-hidden="true"><line x1="0" y1="5" x2="26" y2="5" style="stroke:var(--mort)" stroke-width="2" stroke-dasharray="5 3"/><circle cx="13" cy="5" r="2.7" style="fill:var(--surface);stroke:var(--mort)" stroke-width="1.4"/></svg>Mortality</span>
+        <span class="hint" id="legend-hint"></span>
+      </div></div>
+    <div class="grid2">
+      <figure class="card"><figcaption id="cap-early"></figcaption><div class="chart" id="c-early"></div></figure>
+      <figure class="card"><figcaption id="cap-late"></figcaption><div class="chart" id="c-late"></div></figure>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-ef">
+    <div class="sec-head"><h2 id="h-ef">Age-period-cohort model</h2><p class="hint" id="ef-hint"></p></div>
+    <div class="grid2">
+      <figure class="card"><figcaption>Local drifts <span class="cap-sub" id="cap-ld"></span></figcaption><div class="chart" id="c-ld"></div></figure>
+      <figure class="card"><figcaption>Fitted cohort pattern <span class="cap-sub" id="cap-fcp"></span></figcaption><div class="chart" id="c-fcp"></div></figure>
+    </div>
+  </section>
+  </div>
+
+  <div class="lex-head">
+    <div class="field"><span id="lexw-label">Lexis cells</span>
+      <div class="seg" role="radiogroup" aria-labelledby="lexw-label" id="f-lexw">
+        <button type="button" role="radio" id="lexw-1x1" data-w="1x1">1×1</button>
+        <button type="button" role="radio" id="lexw-5x5" data-w="5x5">5×5</button>
+      </div>
+    </div>
+    <p class="hint" id="lexis-hint"></p>
+  </div>
+  <div class="chart-row">
+  <section aria-labelledby="h-lex-inc">
+    <div class="sec-head"><h2 id="h-lex-inc">Lexis diagram · incidence</h2><span class="ramp" id="ramp-inc"></span></div>
+    <div class="grid2">
+      <figure class="card"><figcaption>Age × period</figcaption><div class="lex" id="lx-inc-p"></div></figure>
+      <figure class="card"><figcaption>Age × birth cohort</figcaption><div class="lex" id="lx-inc-c"></div></figure>
+    </div>
+  </section>
+  <section aria-labelledby="h-lex-mort">
+    <div class="sec-head"><h2 id="h-lex-mort">Lexis diagram · mortality</h2><span class="ramp" id="ramp-mort"></span></div>
+    <div class="grid2">
+      <figure class="card"><figcaption>Age × period</figcaption><div class="lex" id="lx-mort-p"></div></figure>
+      <figure class="card"><figcaption>Age × birth cohort</figcaption><div class="lex" id="lx-mort-c"></div></figure>
+    </div>
+  </section>
+  </div>
+
+  <div class="chart-row">
+  <section aria-labelledby="h-cap">
+    <div class="sec-head"><h2 id="h-cap">Comparative APC · males vs females</h2></div>
+    <div class="grid2">
+      <figure class="card"><figcaption>Cohort rate ratio <span class="cap-sub" id="cap-crr"></span></figcaption><div class="chart" id="c-crr"></div></figure>
+      <figure class="card"><figcaption>Local drift contrast <span class="cap-sub" id="cap-cld"></span></figcaption><div class="chart" id="c-cld"></div></figure>
+    </div>
+  </section>
+  <section aria-labelledby="h-captest">
+    <div class="sec-head"><h2 id="h-captest">Proportionality tests</h2><p class="hint">LRT vs NPH (Poisson, MATISSE) · adj. = overdispersion-adjusted</p></div>
+    <div class="grid2"><figure class="card span-all captbl"><figcaption id="cap-tests"></figcaption><div class="tbl-wrap" id="captest"></div></figure></div>
+  </section>
+  </div>
+
+  <div class="chart-row">
+  <section aria-labelledby="h-capmi">
+    <div class="sec-head"><h2 id="h-capmi">Comparative APC · mortality vs incidence</h2><p class="hint" id="capmi-hint"></p></div>
+    <div class="grid2">
+      <figure class="card"><figcaption>Mortality / incidence ratio <span class="cap-sub" id="cap-mir"></span></figcaption><div class="chart" id="c-mir"></div></figure>
+      <figure class="card"><figcaption>Local drift contrast <span class="cap-sub" id="cap-mild"></span></figcaption><div class="chart" id="c-mild"></div></figure>
+    </div>
+  </section>
+  <section aria-labelledby="h-capmitest">
+    <div class="sec-head"><h2 id="h-capmitest">Proportionality tests</h2><p class="hint">LRT vs NPH (Poisson, MATISSE) · adj. = overdispersion-adjusted</p></div>
+    <div class="grid2"><figure class="card span-all captbl"><figcaption id="cap-mitests"></figcaption><div class="tbl-wrap" id="capmitest"></div></figure></div>
+  </section>
+  </div>
+
+  <details class="card" id="tbl-box">
+    <summary>Data table</summary>
+    <div class="tbl-wrap" id="tbl"></div>
+  </details>
+
+  <section class="notes" id="notes" aria-label="Methods and sources"></section>
+</div>
+
+<script>
+const D = __DASHBOARD_DATA__;   // sites, registry panels, countries; each country's data is data/<M49>.js, loaded on demand
+
+const arr = v => Array.isArray(v) ? v : [v];
+const cols = o => { const k = Object.keys(o || {}); if (!k.length) return []; const n = arr(o[k[0]]).length;
+  return Array.from({ length: n }, (_, i) => Object.fromEntries(k.map(c => [c, arr(o[c])[i]]))); };
+const key = (...a) => a.join('|');
+const SITES = cols(D.sites), PANELS = cols(D.panels), CTRY = cols(D.countries);
+const COUNTRIES = CTRY.map(c => c.country);
+const SERIES = new Map(), APC = new Map(), LEX = new Map(), EF = new Map(), CAPEF = new Map(), CAPT = new Map();
+function ingest(d) {
+  const c = d.country;
+  for (const r of cols(d.asr)) {                      // one row per series: annual values from year y0
+    const a = arr(r.a), s = arr(r.s), n = arr(r.n);
+    SERIES.set(key(c, r.site, r.indicator, r.sex, r.onset), a.map((y, i) => ({ x: r.y0 + i, y, s: s[i], n: n[i] })));
+  }
+  for (const r of cols(d.apc)) APC.set(key(c, r.site, r.indicator, r.sex, r.onset), r);
+  for (const r of cols(d.lexis)) LEX.set(key(c, r.site, r.indicator, r.sex, '5x5'), r);
+  for (const r of cols(d.lexis1)) {                   // 1 x 1 rates stored as differences of round(100 * log(rate))
+    let v = 0; r.r = arr(r.r).map(q => Math.exp((v += q) / 100));
+    LEX.set(key(c, r.site, r.indicator, r.sex, '1x1'), r);
+  }
+  for (const r of cols(d.apcef)) EF.set(key(c, r.site, r.indicator, r.sex, r.ef), r);
+  for (const r of cols(d.capef)) CAPEF.set(key(c, r.comparison, r.site, r.indicator, r.sex, r.ef), r);
+  for (const r of cols(d.captest)) CAPT.set(key(c, r.comparison, r.site, r.indicator, r.sex, r.od, r.model), r);
+}
+const READY = new Set(), LOADING = new Map();
+// country files are scripts calling EU40_LOAD({...}): a <script> tag works from file://, a web server or the artifact
+window.EU40_LOAD = d => { ingest(d); READY.add(d.country); };
+const load = c => {
+  if (!LOADING.has(c)) LOADING.set(c, new Promise((resolve, reject) => {
+    const f = CTRY.find(x => x.country === c).file, el = document.createElement('script');
+    el.src = f;
+    el.onload = () => READY.has(c) ? resolve() : reject(new Error(`${f} has no data`));
+    el.onerror = () => { LOADING.delete(c); el.remove(); reject(new Error(`${f} not found next to the dashboard`)); };
+    document.head.appendChild(el);
+  }));
+  return LOADING.get(c);
+};
+
+const ONSET = { early: `Early onset (<${D.age_cut})`, late: `Late onset (${D.age_cut}+)` };
+const SHORT = { early: `<${D.age_cut}`, late: `${D.age_cut}+` };
+const SEXL = { 0: 'Both sexes', 1: 'Male', 2: 'Female' };
+const COL = { Incidence: 'var(--inc)', Mortality: 'var(--mort)' };
+const DASH = { Incidence: '', Mortality: '6 4' };
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const minus = s => s.replace('-', '−');
+const fmtRate = v => v == null ? '—' : v < 10 ? v.toFixed(2) : v < 100 ? v.toFixed(1) : Math.round(v).toLocaleString('en');
+const fmtPct = v => minus((v > 0 ? '+' : '') + v.toFixed(1) + '%');
+const sexesOf = s => { const x = String(s.sexes).split(';').map(Number); return x.length === 2 ? [0, 1, 2] : x; };
+
+const S = { country: COUNTRIES[0], site: 'colorectum', sex: 0, scale: 'log', line: 'smooth', lexw: '1x1' };
+try { Object.assign(S, JSON.parse(localStorage.getItem('eu40-trends') || '{}')); } catch (e) {}
+if (!COUNTRIES.includes(S.country)) S.country = COUNTRIES[0];
+if (!SITES.some(s => s.id === S.site)) S.site = SITES[0].id;
+if (!['log', 'lin'].includes(S.scale)) S.scale = 'log';
+if (!['smooth', 'trend', 'both'].includes(S.line)) S.line = 'smooth';
+const LEXW = ['1x1', '5x5'];
+if (!LEXW.includes(S.lexw)) S.lexw = '1x1';
+
+/* ---------- controls ---------- */
+$('f-country').innerHTML = COUNTRIES.map(c => `<option>${esc(c)}</option>`).join('');
+$('f-country').value = S.country;
+const rest = SITES.filter(s => !s.eo && s.group !== 'All sites');
+const optgroups = [['All sites', SITES.filter(s => s.group === 'All sites')], ['Rising in early-onset adults', SITES.filter(s => s.eo)],
+  ...[...new Set(rest.map(s => s.group))].map(g => [g, rest.filter(s => s.group === g)])];
+$('f-site').innerHTML = optgroups.map(([g, ss]) => `<optgroup label="${esc(g)}">` +
+  ss.map(s => `<option value="${esc(s.id)}">${esc(s.label)}</option>`).join('') + '</optgroup>').join('');
+$('f-country').onchange = e => { S.country = e.target.value; show(); };
+$('f-site').onchange = e => { S.site = e.target.value; render(); };
+for (const b of $('f-sex').querySelectorAll('button')) b.onclick = () => { S.sex = +b.dataset.sex; render(); };
+for (const b of $('f-scale').querySelectorAll('button')) b.onclick = () => { S.scale = b.dataset.scale; render(); };
+for (const b of $('f-line').querySelectorAll('button')) b.onclick = () => { S.line = b.dataset.line; render(); };
+for (const b of $('f-lexw').querySelectorAll('button')) b.onclick = () => { S.lexw = b.dataset.w; render(); };
+$('f-lexw').addEventListener('keydown', e => {
+  if (!['ArrowLeft', 'ArrowRight'].includes(e.key)) return;
+  const i = LEXW.indexOf(S.lexw);
+  S.lexw = LEXW[(i + (e.key === 'ArrowRight' ? 1 : LEXW.length - 1)) % LEXW.length]; render(); $('lexw-' + S.lexw).focus();
+});
+$('f-line').addEventListener('keydown', e => {
+  if (!['ArrowLeft', 'ArrowRight'].includes(e.key)) return;
+  const o = ['smooth', 'trend', 'both'], i = o.indexOf(S.line);
+  S.line = o[(i + (e.key === 'ArrowRight' ? 1 : 2)) % 3]; render(); $('line-' + S.line).focus();
+});
+$('f-scale').addEventListener('keydown', e => {
+  if (!['ArrowLeft', 'ArrowRight'].includes(e.key)) return;
+  S.scale = S.scale === 'log' ? 'lin' : 'log'; render(); $('scale-' + S.scale).focus();
+});
+$('f-sex').addEventListener('keydown', e => {
+  if (!['ArrowLeft', 'ArrowRight'].includes(e.key)) return;
+  const ok = sexesOf(site()), i = ok.indexOf(S.sex);
+  S.sex = ok[(i + (e.key === 'ArrowRight' ? 1 : ok.length - 1)) % ok.length]; render(); $('sex-' + S.sex).focus();
+});
+
+const site = () => SITES.find(s => s.id === S.site);
+const ser = (ind, on) => SERIES.get(key(S.country, S.site, ind, S.sex, on)) || [];
+
+/* ---------- charts ---------- */
+function niceTicks(lo, hi, n) {
+  if (hi <= lo) hi = lo + 1;
+  const raw = (hi - lo) / n, p = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / p;
+  const step = (f < 1.5 ? 1 : f < 3 ? 2 : f < 7 ? 5 : 10) * p;
+  const t = []; for (let v = Math.floor(lo / step) * step; v <= hi + step * 1e-9; v += step) t.push(+v.toFixed(10));
+  if (t[t.length - 1] < hi) t.push(+(t[t.length - 1] + step).toFixed(10));
+  return t;
+}
+
+function logTicks(lo, hi) {
+  for (const mult of [[1, 2, 5], [1, 1.5, 2, 3, 5, 7]]) {
+    const t = [];
+    for (let e = Math.floor(Math.log10(lo)) - 1; e <= Math.ceil(Math.log10(hi)); e++)
+      for (const k of mult) { const v = +(k * Math.pow(10, e)).toPrecision(6); if (v >= lo && v <= hi) t.push(v); }
+    if (t.length >= 4) return t;
+  }
+  return niceTicks(lo, hi, 6).filter(v => v > 0 && v >= lo && v <= hi);
+}
+
+function drawChart(el, o) {
+  const series = o.series.filter(s => s.pts.length);
+  if (!series.length) { el.innerHTML = `<p class="empty">${esc(o.empty || 'No data for this selection.')}</p>`; return; }
+  const W = Math.max(260, Math.round(el.clientWidth)), H = Math.round(Math.min(420, Math.max(260, W * 1.25)));
+  const m = { t: 8, r: o.endLabels ? 36 : 10, b: 22, l: 40 };
+  const [x0, x1] = o.xDom, log = o.log;
+  const ok = v => Number.isFinite(v) && (!log || v > 0);
+  const vals = series.flatMap(sr => [...sr.pts, ...(sr.lines || []).flatMap(l => l.pts)].map(p => p.y)).filter(ok);
+  let lo, hi, yt, fmtTick;
+  if (log) {
+    lo = Math.min(...vals) / 1.15; hi = Math.max(...vals) * 1.15;
+    if (o.index) { lo = Math.min(lo, 90); hi = Math.max(hi, 110); }
+    if (o.ref != null) { lo = Math.min(lo, o.ref / 1.08); hi = Math.max(hi, o.ref * 1.08); }
+    yt = logTicks(lo, hi);
+    fmtTick = t => t >= 1000 ? t.toLocaleString('en') : String(+t.toPrecision(3));
+  } else {
+    yt = niceTicks(o.index ? Math.min(100, ...vals) : Math.min(0, ...vals), Math.max(o.index ? 100 : 0, ...vals), 4);
+    lo = yt[0]; hi = yt[yt.length - 1];
+    const step = yt[1] - yt[0], dec = step >= 1 ? 0 : Math.ceil(-Math.log10(step) - 1e-9);
+    fmtTick = t => t.toLocaleString('en', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+  }
+  const tr = log ? Math.log10 : v => v;
+  const X = v => m.l + (x1 === x0 ? 0.5 : (v - x0) / (x1 - x0)) * (W - m.l - m.r);
+  const Y = v => m.t + (1 - (tr(v) - tr(lo)) / (tr(hi) - tr(lo))) * (H - m.t - m.b);
+  const span = x1 - x0, xs = span >= 30 ? 10 : span >= 15 ? 5 : span >= 6 ? 2 : 1, xt = [];
+  for (let v = Math.ceil(x0 / xs) * xs; v <= x1; v += xs) xt.push(v);
+  const path = pts => 'M' + pts.filter(p => ok(p.y)).map(p => `${X(p.x).toFixed(1)},${Y(p.y).toFixed(1)}`).join('L');
+
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(o.aria)}">`;
+  for (const t of yt) s += `<line x1="${m.l}" x2="${W - m.r}" y1="${Y(t)}" y2="${Y(t)}" style="stroke:var(--hair)" stroke-width="1"/>` +
+    `<text class="tick" x="${m.l - 8}" y="${Y(t)}" dy="0.32em" text-anchor="end">${minus(fmtTick(t))}${o.yUnit || ''}</text>`;
+  s += `<line x1="${m.l}" x2="${W - m.r}" y1="${H - m.b}" y2="${H - m.b}" style="stroke:var(--axis)" stroke-width="1"/>`;
+  if (!log && lo < 0) s += `<line x1="${m.l}" x2="${W - m.r}" y1="${Y(0)}" y2="${Y(0)}" style="stroke:var(--axis)" stroke-width="1"/>`;
+  if (o.ref != null) s += `<line x1="${m.l}" x2="${W - m.r}" y1="${Y(o.ref)}" y2="${Y(o.ref)}" style="stroke:var(--axis)" stroke-dasharray="2 3"/>`;
+  if (o.index) s += `<line x1="${m.l}" x2="${W - m.r}" y1="${Y(100)}" y2="${Y(100)}" style="stroke:var(--axis)" stroke-dasharray="2 3"/>`;
+  for (const t of xt) s += `<text class="tick" x="${X(t)}" y="${H - 6}" text-anchor="middle">${t}</text>`;
+  const labs = [];
+  for (const sr of series) {
+    for (const ln of sr.lines || []) if (ln.pts.filter(p => ok(p.y)).length > 1)
+      s += `<path d="${path(ln.pts)}" fill="none" style="stroke:${sr.color}" stroke-width="${ln.width || 2}" stroke-opacity="${ln.opacity || 1}" stroke-linejoin="round" stroke-linecap="round"${ln.dash ? ` stroke-dasharray="${ln.dash}"` : ''}/>`;
+    if (sr.dots) for (const p of sr.pts) if (ok(p.y))
+      s += `<circle cx="${X(p.x).toFixed(1)}" cy="${Y(p.y).toFixed(1)}" r="2.7" style="fill:${sr.open ? 'var(--surface)' : sr.color};stroke:${sr.color}" stroke-width="${sr.open ? 1.4 : 0}"/>`;
+    const e = ((sr.lines || [])[0] || sr).pts.filter(p => ok(p.y)).pop();
+    if (o.endLabels && e) labs.push({ x: X(e.x) + 7, y: Y(e.y), t: sr.label, c: sr.color });
+  }
+  labs.sort((a, b) => a.y - b.y);
+  for (let i = 1; i < labs.length; i++) if (labs[i].y - labs[i - 1].y < 13) labs[i].y = labs[i - 1].y + 13;
+  for (const l of labs) s += `<text class="endlab" x="${l.x}" y="${l.y}" dy="0.32em" style="fill:${l.c}">${esc(l.t)}</text>`;
+  s += `<g class="hov" style="display:none"><line y1="${m.t}" y2="${H - m.b}" style="stroke:var(--axis)"/>` +
+    series.map(sr => `<circle r="4.2" style="fill:${sr.open ? 'var(--surface)' : sr.color};stroke:${sr.open ? sr.color : 'var(--surface)'}" stroke-width="2"/>`).join('') + '</g>';
+  s += `<rect x="${m.l}" y="${m.t}" width="${W - m.l - m.r}" height="${H - m.t - m.b}" fill="transparent"/></svg><div class="tip" hidden></div>`;
+  el.innerHTML = s;
+
+  const svg = el.querySelector('svg'), tip = el.querySelector('.tip'), hov = svg.querySelector('.hov');
+  const years = [...new Set(series.flatMap(sr => sr.pts.map(p => p.x)))].sort((a, b) => a - b);
+  let cur = years.length - 1;
+  const show = i => {
+    cur = Math.max(0, Math.min(years.length - 1, i)); const yr = years[cur], px = X(yr);
+    hov.style.display = ''; hov.querySelector('line').setAttribute('x1', px); hov.querySelector('line').setAttribute('x2', px);
+    let rows = '';
+    series.forEach((sr, j) => {
+      const p = sr.pts.find(q => q.x === yr), c = hov.querySelectorAll('circle')[j];
+      c.style.display = p && ok(p.y) ? '' : 'none';
+      if (!p) return;
+      if (ok(p.y)) { c.setAttribute('cx', px); c.setAttribute('cy', Y(p.y)); }
+      rows += `<div class="row"><i class="sw" style="background:${sr.color}"></i><span>${esc(sr.name || sr.label)}</span><span class="v">${o.fmt ? o.fmt(p.y) : o.index ? Math.round(p.y) : fmtRate(p.y)}</span></div>`;
+    });
+    tip.innerHTML = `<b>${o.xLab ? o.xLab(yr) : yr}</b>${rows}`; tip.hidden = false;
+    const scale = svg.getBoundingClientRect().width / W, tw = tip.offsetWidth, left = px * scale + 12;
+    tip.style.left = (left + tw > el.clientWidth ? px * scale - tw - 12 : left) + 'px';
+  };
+  const hide = () => { hov.style.display = 'none'; tip.hidden = true; };
+  const nearest = ev => { const r = svg.getBoundingClientRect(), x = (ev.clientX - r.left) * W / r.width;
+    let b = 0; years.forEach((y, i) => { if (Math.abs(X(y) - x) < Math.abs(X(years[b]) - x)) b = i; }); return b; };
+  svg.addEventListener('pointermove', ev => show(nearest(ev)));
+  svg.addEventListener('pointerleave', hide);
+  el.tabIndex = 0; el.setAttribute('aria-label', o.aria + '. Use left and right arrow keys to read values.');
+  el.onkeydown = ev => { if (ev.key === 'ArrowLeft') { show(cur - 1); ev.preventDefault(); } else if (ev.key === 'ArrowRight') { show(cur + 1); ev.preventDefault(); } else if (ev.key === 'Escape') hide(); };
+  el.onfocus = () => show(cur); el.onblur = hide;
+}
+
+/* ---------- Lexis diagrams (MATISSE rates/lexis) ---------- */
+const HEAT_ALPHA = 0.7;   // jet softened: stops blended with the card surface, as an alpha of 0.7 would
+const heatStops = () => { const cs = getComputedStyle(document.documentElement);
+  const rgb = h => { h = h.trim().replace('#', ''); return [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16)); };
+  const bg = rgb(cs.getPropertyValue('--surface'));
+  return cs.getPropertyValue('--heat').split(',').map(h => rgb(h).map((x, i) => bg[i] + (x - bg[i]) * HEAT_ALPHA)); };
+const mix = (a, b, t) => `rgb(${a.map((x, i) => Math.round(x + (b[i] - x) * t)).join(',')})`;
+const heat = (st, t) => { const x = Math.min(1, Math.max(0, t)) * (st.length - 1), i = Math.min(st.length - 2, Math.floor(x));
+  return mix(st[i], st[i + 1], x - i); };
+const perLab = (p, w) => w === 1 ? `${p}` : `${p}\u2013${String((p + w - 1) % 100).padStart(2, '0')}`;
+
+// cells of one Lexis diagram: e and py are age-major (A ages x P periods); zero cells coloured with the fill value
+const lexCells = ind => {
+  const o = LEX.get(key(S.country, S.site, ind, S.sex, S.lexw));
+  if (!o) return [];
+  if (o.r) { const r = arr(o.r);
+    return r.map((v, k) => ({ age: D.lexis_a0 + Math.floor(k / o.P), period: o.p0 + (k % o.P), w: 1, aw: 1, events: null, rate: v })); }
+  const e = arr(o.e), py = arr(o.py), A = e.length / o.P;
+  return Array.from({ length: A * o.P }, (_, k) => ({ age: D.lexis_a0 + 5 * Math.floor(k / o.P), period: o.p0 + (k % o.P) * 5, w: 5, aw: 5,
+    events: e[k], py: py[k], rate: 1e5 * (e[k] > 0 ? e[k] : o.f) / py[k] }));
+};
+
+function drawLexis(el, cells, o) {
+  if (!cells.length) { el.innerHTML = `<p class="empty">${esc(o.empty)}</p>`; return; }
+  const w = cells[0].w, aw = cells[0].aw, ages = cells.map(c => c.age), pers = cells.map(c => c.period);
+  const a0 = Math.min(...ages), a1 = Math.max(...ages) + aw;
+  const coh = c => c.period + w / 2 - (c.age + aw / 2);        // birth-cohort midpoint
+  const byPer = o.mode === 'period', [y0, y1] = byPer ? o.pdom : o.cdom;   // year range shared by incidence and mortality
+  const W = Math.max(220, Math.round(el.clientWidth)), H = Math.round(Math.min(420, Math.max(260, W * 1.25)));   // as the trend charts
+  const m = { t: 4, r: 4, b: 20, l: 40 };
+  const u = (W - m.l - m.r) / (a1 - a0), v = (H - m.t - m.b) / (y1 - y0);   // px per year of age, and of calendar or birth year
+  const X = a => m.l + (a - a0) * u, Yp = t => m.t + (y1 - t) * v, Yc = Yp;
+  const [lo, hi] = o.dom.map(Math.log);
+  const fill = r => heat(o.stops, hi > lo ? (Math.log(r) - lo) / (hi - lo) : 0.5);
+  const cell = Math.min(w * v, aw * u), ov = cell < 5 ? 0.6 : 0;   // tiny cells overlap slightly, hiding anti-aliasing seams
+  let svg = `<svg viewBox="0 0 ${W} ${H.toFixed(1)}" class="${cell < 5 ? 'tiny' : cell < 8 ? 'thin' : ''}" role="img" aria-label="${esc(o.aria)}">`;
+  for (const c of cells)
+    svg += `<rect data-k="${c.age}|${c.period}" x="${X(c.age).toFixed(1)}" y="${(byPer ? Yp(c.period + w) : Yc(coh(c) + w / 2)).toFixed(1)}" width="${(aw * u + ov).toFixed(2)}" height="${(w * v + ov).toFixed(2)}" style="fill:${fill(c.rate)}"/>`;
+  for (let a = Math.ceil(a0 / 10) * 10; a < a1; a += 10) svg += `<text class="tick" x="${X(a).toFixed(1)}" y="${(H - 5).toFixed(1)}" text-anchor="middle">${a}</text>`;
+  const n = [1, 2, 5, 10].find(k => k * w * v >= 9) || 10;      // label every year (row) while labels stay >= 9 px apart
+  const keep = (t, t0) => (w === 1 ? t : Math.round((t - t0) / w)) % n === 0;
+  const rows = [...new Set(byPer ? pers : cells.map(coh))].sort((a, b) => a - b);
+  for (const t of rows) if (keep(t, rows[0]))
+    svg += `<text class="tick" x="${m.l - 4}" y="${(byPer ? Yp(t + w / 2) : Yc(t)).toFixed(1)}" dy="0.32em" text-anchor="end">${byPer ? perLab(t, w) : t}</text>`;
+  el.innerHTML = svg + '</svg><div class="tip" hidden></div>';
+
+  const tip = el.querySelector('.tip'), svgEl = el.querySelector('svg');
+  const clear = () => { o.group.querySelectorAll('rect.hl').forEach(r => r.classList.remove('hl')); tip.hidden = true; };
+  svgEl.addEventListener('pointermove', ev => {
+    const k = ev.target.dataset && ev.target.dataset.k;
+    if (!k) return clear();
+    const c = cells.find(q => `${q.age}|${q.period}` === k);
+    o.group.querySelectorAll('rect.hl').forEach(r => r.classList.remove('hl'));
+    o.group.querySelectorAll(`rect[data-k="${k}"]`).forEach(r => r.classList.add('hl'));
+    tip.innerHTML = `<b>${aw === 1 ? `Age ${c.age}` : `Ages ${c.age}\u2013${c.age + 4}`} \u00b7 ${perLab(c.period, w)}</b>` +
+      `<div class="row"><i class="sw" style="background:${fill(c.rate)}"></i><span>Rate</span><span class="v">${c.events === 0 ? '0' : fmtRate(c.rate)}</span></div>` +
+      (c.events == null ? `<div class="row"><span></span><span>Interpolated</span><span class="v">i5, cubic</span></div>`
+                        : `<div class="row"><span></span><span>${o.unit}</span><span class="v">${c.events.toLocaleString('en')}</span></div>`) +
+      `<div class="row"><span></span><span>Born</span><span class="v">${c.period - c.age - aw}\u2013${String((c.period + w - 1 - c.age) % 100).padStart(2, '0')}</span></div>`;
+    tip.hidden = false;
+    const r = ev.target.getBoundingClientRect(), box = el.getBoundingClientRect(), tw = tip.offsetWidth;
+    const left = r.right - box.left + 8;
+    tip.style.left = (left + tw > el.clientWidth ? r.left - box.left - tw - 8 : left) + 'px';
+    tip.style.top = Math.max(0, r.top - box.top - 10) + 'px';
+  });
+  svgEl.addEventListener('pointerleave', clear);
+}
+
+/* ---------- render ---------- */
+async function show() {
+  if (!READY.has(S.country)) {
+    $('status').hidden = false; $('status').textContent = `Loading ${S.country}\u2026`;
+    try { await load(S.country); }
+    catch (e) { $('status').textContent = `Could not load the data for ${S.country}: ${e.message} (keep the data folder beside the HTML file).`; return; }
+    $('status').hidden = true;
+  }
+  render();
+}
+
+function render() {
+  if (!READY.has(S.country)) return;
+  const st = site(), ok = sexesOf(st);
+  if (!ok.includes(S.sex)) S.sex = ok[0];
+  try { localStorage.setItem('eu40-trends', JSON.stringify(S)); } catch (e) {}
+  $('f-country').value = S.country; $('f-site').value = S.site;
+  for (const b of $('f-sex').querySelectorAll('button')) {
+    const v = +b.dataset.sex; b.disabled = !ok.includes(v); b.setAttribute('aria-checked', v === S.sex); b.tabIndex = v === S.sex ? 0 : -1;
+  }
+  for (const b of $('f-scale').querySelectorAll('button')) {
+    const on = b.dataset.scale === S.scale; b.setAttribute('aria-checked', on); b.tabIndex = on ? 0 : -1;
+  }
+  for (const b of $('f-line').querySelectorAll('button')) {
+    const on = b.dataset.line === S.line; b.setAttribute('aria-checked', on); b.tabIndex = on ? 0 : -1;
+  }
+  const log = S.scale === 'log';
+  $('legend-hint').textContent = 'dots: annual rates · lines: ' +
+    { smooth: 'smoothed (LOESS)', trend: 'log-linear trend', both: 'smoothed (LOESS) and log-linear trend (dotted)' }[S.line];
+  $('sub').textContent = `${S.country} · ${st.label} · ${SEXL[S.sex]} · truncated ASR per 100,000 person-years, ${D.pop_base} standard`;
+  const noMort = !st.icd10;
+  $('match').innerHTML = (st.eo ? '<span class="flag">Rising in early onset</span>' : '') +
+    (st.comparability !== 'exact' ? `<span class="flag">${noMort ? 'Incidence only' : 'Approximate match'}</span>` : '') +
+    `Incidence: ECIS “${esc(st.ecis)}” · ` + (noMort ? 'Mortality: no separate WHO code' : `Mortality: ICD-10 ${esc(st.icd10)}`) +
+    (st.note ? ` · ${esc(st.note)}` : '');
+
+  $('tiles').innerHTML = [['Incidence', 'early'], ['Incidence', 'late'], ['Mortality', 'early'], ['Mortality', 'late']].map(([ind, on]) => {
+    const a = APC.get(key(S.country, S.site, ind, S.sex, on));
+    const label = `<p class="t-label"><i class="sw" style="background:${COL[ind]}"></i>${ind} · ${ONSET[on]}</p>`;
+    if (!a || a.apc == null) return `<article class="tile">${label}<p class="t-val">—</p><p class="t-ci">${ind === 'Mortality' && noMort ? 'No separate WHO mortality code' : 'Not enough data'}</p></article>`;
+    const d = a.lo > 0 ? ['up', '▲', 'Rising'] : a.hi < 0 ? ['down', '▼', 'Falling'] : ['flat', '–', 'No significant trend'];
+    return `<article class="tile">${label}<p class="t-val">${fmtPct(a.apc)}<span class="t-unit">/ year</span>` +
+      `<span class="chip chip-${d[0]}"><span aria-hidden="true">${d[1]}</span> ${d[2]}</span></p>` +
+      `<p class="t-ci">${a.y0}–${a.y1}</p></article>`;
+  }).join('');
+
+  const all = ['Incidence', 'Mortality'].flatMap(i => ['early', 'late'].flatMap(o => ser(i, o).map(p => p.x)));
+  const xDom = all.length ? [Math.min(...all), Math.max(...all)] : [0, 1];
+  const fitOf = (ind, on) => { const a = APC.get(key(S.country, S.site, ind, S.sex, on));
+    if (!a || a.fit0 == null || a.y1 === a.y0) return null;
+    return Array.from({ length: a.y1 - a.y0 + 1 }, (_, i) => ({ x: a.y0 + i, y: a.fit0 * Math.pow(a.fit1 / a.fit0, i / (a.y1 - a.y0)) })); };
+  const smoothOf = (ind, on) => { const p = ser(ind, on).filter(q => q.s != null); return p.length > 1 ? p.map(q => ({ x: q.x, y: q.s })) : null; };
+  const linesOf = (sm, fit, dash) => [
+    ...(S.line !== 'trend' && sm ? [{ pts: sm, dash }] : []),
+    ...(S.line !== 'smooth' && fit ? [S.line === 'both' ? { pts: fit, dash: '2 3', width: 1.3, opacity: 0.85 } : { pts: fit, dash }] : [])];
+  for (const on of ['early', 'late']) {
+    $('cap-' + on).textContent = ONSET[on] + (log ? ' \u00b7 log scale' : '');
+    drawChart($('c-' + on), { xDom, log, aria: `${ONSET[on]} incidence and mortality rates, ${st.label}, ${SEXL[S.sex]}`,
+      series: ['Incidence', 'Mortality'].map(ind => ({ label: ind, color: COL[ind], dots: true, open: ind === 'Mortality',
+        pts: ser(ind, on), lines: linesOf(smoothOf(ind, on), fitOf(ind, on), DASH[ind]) })) });
+  }
+  const combos = [['Incidence', 'early'], ['Incidence', 'late'], ['Mortality', 'early'], ['Mortality', 'late']];
+  const yrs = [...new Set(all)].sort((a, b) => b - a);
+  $('tbl').innerHTML = `<table><thead><tr><th>Year</th>${combos.map(([i, o]) => `<th>${i} ${SHORT[o]}</th>`).join('')}</tr></thead><tbody>` +
+    yrs.map(y => `<tr><td>${y}</td>${combos.map(([i, o]) => { const p = ser(i, o).find(q => q.x === y);
+      return p ? `<td>${fmtRate(p.y)}<small>n=${p.n.toLocaleString('en')}</small></td>` : '<td>—</td>'; }).join('')}</tr>`).join('') +
+    '</tbody></table>';
+
+  for (const b of $('f-lexw').querySelectorAll('button')) {
+    const on = b.dataset.w === S.lexw; b.setAttribute('aria-checked', on); b.tabIndex = on ? 0 : -1;
+  }
+  $('lexis-hint').textContent = `Ages ${D.lexis_a0}\u2013${D.lexis_a0 + 64}, cells of age \u00d7 period years. ` +
+    (S.lexw === '1x1' ? 'Single-year ages are interpolated from the 5-year groups with MATISSE i5 (cubic), giving 1\u00d71 cells with the finest cohort resolution (2 birth years per cell).'
+     : '5\u00d75 cells, as in MATISSE (10 birth years per cohort cell).') +
+    ' Left, age \u00d7 calendar period; right, the same cells by birth cohort. Hover a cell to find it in both views.';
+  const LC = { Incidence: lexCells('Incidence'), Mortality: lexCells('Mortality') }, lx = [...LC.Incidence, ...LC.Mortality];
+  const rng = (lo, hi) => lx.length ? [Math.min(...lx.map(lo)), Math.max(...lx.map(hi))] : [0, 1];
+  const pdom = rng(c => c.period, c => c.period + c.w), cdom = rng(c => c.period - c.age - c.aw / 2, c => c.period + c.w - c.age - c.aw / 2);
+  for (const ind of ['Incidence', 'Mortality']) {
+    const t = ind === 'Incidence' ? 'inc' : 'mort', cells = LC[ind];
+    const pos = cells.map(c => c.rate).filter(r => r > 0), dom = pos.length ? [Math.min(...pos), Math.max(...pos)] : [1, 1];
+    const stops = heatStops();
+    $('ramp-' + t).innerHTML = cells.length ? `<span>${fmtRate(dom[0])}</span><i style="background:linear-gradient(90deg,${stops.map(c => `rgb(${c.join(',')})`).join(',')})"></i><span>${fmtRate(dom[1])} per 100,000 \u00b7 log scale</span>` : '';
+    for (const mode of ['period', 'cohort'])
+      drawLexis($(`lx-${t}-${mode[0]}`), cells, { mode, dom, stops, pdom, cdom, unit: ind === 'Incidence' ? 'Cases' : 'Deaths',
+        group: $(`lx-${t}-p`).closest('section'),
+        empty: ind === 'Mortality' && noMort ? 'No separate WHO mortality code for this site.' : 'No data for this selection.',
+        aria: `${ind} Lexis diagram, age by ${mode}, ${st.label}, ${SEXL[S.sex]}` });
+  }
+
+  // APC estimable functions (MATISSE @apc), 5 x 5 cells: x = age, period or cohort midpoint
+  const yy = v => String(((v % 100) + 100) % 100).padStart(2, '0');
+  const ages = x => `Ages ${x - 2.5}\u2013${x + 1.5}`;
+  const EFX = { ld: ages, fcp: x => `Cohort ${x} (born ${x - 5}\u2013${yy(x + 4)})` };
+  const EFREF = { ld: () => 'net drift dotted', fcp: r => `ages ${r - 2.5}\u2013${r + 1.5}` };
+  const EFN = { ld: 'Local drifts', fcp: 'Fitted cohort pattern' };
+  const efOf = (ind, f) => EF.get(key(S.country, S.site, ind, S.sex, f));
+  for (const f of ['ld', 'fcp']) {
+    const series = ['Incidence', 'Mortality'].map(ind => { const e = efOf(ind, f), r = e ? arr(e.r) : [];
+      const pts = e ? arr(e.x).map((x, i) => ({ x, y: r[i] })) : [];
+      const nd = f === 'ld' && pts.length ? [{ pts: [{ x: pts[0].x, y: e.nd }, { x: pts[pts.length - 1].x, y: e.nd }], dash: '2 3', width: 1.3, opacity: 0.85 }] : [];
+      return { label: ind, color: COL[ind], dots: true, open: ind === 'Mortality', pts, lines: [{ pts, dash: DASH[ind] }, ...nd] }; });
+    const xs = series.flatMap(s => s.pts.map(p => p.x));
+    const refs = [...new Set(['Incidence', 'Mortality'].map(ind => efOf(ind, f)).filter(Boolean).map(e => EFREF[f](e.ref)))];
+    $('cap-' + f).textContent = refs.length ? '\u00b7 ' + refs.join(' / ') : '';
+    drawChart($('c-' + f), { xDom: xs.length ? [Math.min(...xs), Math.max(...xs)] : [0, 1], xLab: EFX[f],
+      ...(f === 'ld' ? { log: false, yUnit: '%', fmt: v => fmtPct(v) + '/yr' } : { log }),
+      empty: 'Not enough periods for an APC model.', series,
+      aria: `${EFN[f]}, incidence and mortality, ${st.label}, ${SEXL[S.sex]}` });
+  }
+  const nd = ind => { const e = efOf(ind, 'ld'); return e ? `${ind.toLowerCase()} ${fmtPct(e.nd)}/yr` : null; };
+  $('ef-hint').textContent = `5\u00d75 cells, ages ${D.lexis_a0}\u2013${D.lexis_a0 + 64}` +
+    (nd('Incidence') || nd('Mortality') ? ' \u00b7 net drift: ' + [nd('Incidence'), nd('Mortality')].filter(Boolean).join(', ') : '');
+
+  // comparative APC (MATISSE @capricorn): NPH contrasts of the first stratum vs the reference, and PH tests
+  const cKey = (cmp, ind, sx, ...a) => key(S.country, cmp, S.site, ind, sx, ...a);
+  const xdom = ss => { const xs = ss.flatMap(q => q.pts.map(p => p.x)); return xs.length ? [Math.min(...xs), Math.max(...xs)] : [0, 1]; };
+  const capLine = (e, label, color, open, dash) => { const r = e ? arr(e.r) : [], pts = e ? arr(e.x).map((x, i) => ({ x, y: r[i] })) : [];
+    return { label, color, dots: true, open, pts, lines: [{ pts, dash }] }; };
+  const ageLab = r => r ? `, ages ${r - 2.5}\u2013${r + 1.5}` : '';
+  const capCharts = (ids, sr, sl, empty, lab) => {
+    drawChart($(ids[0]), { xDom: xdom(sr), log: true, ref: 1, xLab: EFX.fcp, fmt: v => v.toFixed(2), empty, series: sr,
+      aria: `Cohort rate ratio, ${lab}, ${st.label}` });
+    drawChart($(ids[1]), { xDom: xdom(sl), log: false, yUnit: '%', xLab: EFX.ld, fmt: v => fmtPct(v) + '/yr', empty, series: sl,
+      aria: `Local drift contrast, ${lab}, ${st.label}` }); };
+  const fp = p => p == null ? '' : p < 0.001 ? '<0.001' : p.toFixed(3);
+  const PHM = [['PHL', 'PH-L', 'parallel along cohorts'], ['PHT', 'PH-T', 'parallel over time within ages'],
+               ['PHX', 'PH-X', 'parallel cross-sectional age curves'], ['PHA', 'PH-A', 'proportional throughout'], ['NPH', 'NPH', 'not proportional']];
+  const capTable = (cols, empty) => !cols.some(c => c.get(false, 'NPH')) ? `<p class="empty">${esc(empty)}</p>` :
+    `<table><thead><tr><th>Model</th>${cols.map(c => `<th>${c.label} p</th><th>\u0394AICc</th>`).join('')}</tr></thead><tbody>` +
+    PHM.map(([m, lab, desc]) => `<tr><td>${lab}<small>${desc}</small></td>` + cols.map(c => {
+      const a = c.get(false, m), b = c.get(true, m);
+      if (!a) return '<td>\u2014</td><td>\u2014</td>';
+      return `<td>${m === 'NPH' ? '\u2014' : fp(a.p)}${b && m !== 'NPH' ? `<small>adj. ${fp(b.p)}</small>` : ''}</td>` +
+        `<td class="${a.d === 0 ? 'best' : ''}">${a.d.toFixed(1)}${b ? `<small>adj. ${b.d === 0 ? '<b>0.0</b>' : b.d.toFixed(1)}</small>` : ''}</td>`;
+    }).join('') + '</tr>').join('') + '</tbody></table>';
+
+  // males vs females, incidence and mortality
+  const sexEmpty = sexesOf(st).length < 3 ? 'Single-sex site: no male vs female comparison.' : 'Not enough data for a comparative APC model.';
+  const sexE = (ind, f) => CAPEF.get(cKey('sex', ind, -1, f));
+  const sexS = f => ['Incidence', 'Mortality'].map(ind => capLine(sexE(ind, f), ind, COL[ind], ind === 'Mortality', DASH[ind]));
+  $('cap-crr').textContent = '\u00b7 male / female' + ageLab((sexE('Incidence', 'fcp') || sexE('Mortality', 'fcp') || {}).ref);
+  $('cap-cld').textContent = '\u00b7 male vs female';
+  capCharts(['c-crr', 'c-cld'], sexS('fcp'), sexS('ld'), sexEmpty, 'male vs female, incidence and mortality');
+  $('cap-tests').textContent = st.label;
+  $('captest').innerHTML = capTable(['Incidence', 'Mortality'].map(ind => ({ label: ind, get: (od, m) => CAPT.get(cKey('sex', ind, -1, od, m)) })), sexEmpty);
+
+  // mortality vs incidence, selected sex, years common to both
+  const miE = f => CAPEF.get(cKey('mortality_incidence', '-', S.sex, f));
+  const miEmpty = noMort ? 'No separate WHO mortality code for this site.' : 'Fewer than three 5-year periods common to incidence and mortality.';
+  const miS = f => [capLine(miE(f), SEXL[S.sex], 'var(--ink-2)', false, '')];
+  const myrs = (miE('fcp') || miE('ld') || {}).years;
+  $('capmi-hint').textContent = `${SEXL[S.sex]}` + (myrs ? ` \u00b7 common years ${myrs.replace('-', '\u2013')} \u00b7 reference: incidence` : '');
+  $('cap-mir').textContent = ageLab((miE('fcp') || {}).ref).replace(/^, /, '\u00b7 ');
+  $('cap-mild').textContent = '\u00b7 mortality vs incidence';
+  capCharts(['c-mir', 'c-mild'], miS('fcp'), miS('ld'), miEmpty, `mortality vs incidence, ${SEXL[S.sex].toLowerCase()}`);
+  $('cap-mitests').textContent = `${st.label} \u00b7 ${SEXL[S.sex].toLowerCase()}`;
+  $('capmitest').innerHTML = capTable([{ label: 'Mortality vs incidence', get: (od, m) => CAPT.get(cKey('mortality_incidence', '-', S.sex, od, m)) }], miEmpty);
+
+  const pn = PANELS.find(p => p.country === S.country);
+  $('notes').innerHTML = `<h2>Methods and sources</h2>` +
+    `<p><b>Rates.</b> Truncated age-standardised rates per 100,000 person-years, ${esc(D.pop_base)} standard population, computed with <code>Rcan::csu_asr</code>; early onset = ages 0–${D.age_cut - 1}, late onset = ${D.age_cut}+.</p>` +
+    `<p><b>Charts.</b> Dots are observed annual rates. Smoothed lines: LOESS (local linear, span 0.75) on log rates. Trend lines: fitted log-linear regression, whose slope is the annual percent change. On the default log scale (as in CI5 trend figures) parallel lines mean the same annual percent change; zero rates cannot be shown on it.</p>` +
+    (pn ? `<p><b>Incidence.</b> ECIS historical data, ${esc(S.country)}: ${pn.n_registry} registries reporting every year ${pn.y0}–${pn.y1} with unchanged coverage (${esc(pn.registries)}); registries whose covered population changed by more than 20% in a year are excluded, so the covered population does not change over time. Registry areas, not the whole country.</p>` : '') +
+    `<p><b>Mortality.</b> WHO Mortality Database, national deaths and population, cause codes grouped by ICD-10. Sites marked “Incidence only” (small intestine, extrahepatic bile ducts, neuroendocrine tumours, sarcomas, leukaemia subtypes) have no separate WHO code.</p>` +
+    `<p><b>Sites.</b> “Rising in early-onset adults” groups the cancer types reported with increasing early-onset incidence across countries by Ugai et al., <i>Nat Rev Clin Oncol</i> 2022;19:656–673 (colorectum, breast, endometrium, oesophagus, stomach, pancreas, liver, gallbladder, extrahepatic bile duct, head and neck, kidney, prostate, thyroid, myeloma).</p>` +
+    `<p><b>Trend.</b> Annual percent change from a weighted log-linear regression of the annual ASR on calendar year over each series' full period (not joinpoint); years with a zero rate are excluded. “Rising” or “Falling” when the 95% CI excludes zero.</p>` +
+    `<p><b>Lexis diagram.</b> Ages 20–84, as 1×1 cells (single-year ages interpolated from 5-year groups with MATISSE's i5 method, cubic) or 5×5 cells (5-year age groups by 5-year periods), following the MATISSE toolbox (Rosenberg; Miranda Filho &amp; Rosenberg, <i>Front Oncol</i> 2024): calendar years are grouped into blocks keeping the most recent complete periods, and cells with no events get MATISSE's fill value for the colour scale (the tooltip shows the observed count). Panels have the size of the trend charts, so cells are stretched along the year axis rather than square as in MATISSE: one labelled row per calendar year, birth cohorts labelled every 5 years. Calendar and birth years use the same range for incidence and mortality. Cohorts are placed by their midpoint birth year (period midpoint minus age midpoint); a 1×1 cell spans 2 birth years and a 5×5 cell 10. Colours: MATLAB jet colormap as in the MATISSE Lexis examples, on log rates (rates span several orders of magnitude over ages 20–84), scaled separately for incidence and mortality.</p>` +
+    `<p><b>APC model.</b> New age-period-cohort model (Rosenberg) fitted by weighted least squares to the 5×5 Lexis cells, zero cells filled, overdispersion allowed; an R port of the MATISSE <code>@apc</code> class (design <code>GEODE</code>, fit <code>APC</code>, estimable functions <code>macaroons</code>) in <code>code/functions_apc.R</code>. Shown: <i>local drifts</i>, the annual percent change at each age (net drift, dotted, plus the age-specific cohort deviations), and the <i>fitted cohort pattern</i>, rates by birth cohort at the reference age (MATISSE default, the central age group). Net drift is the estimated annual percent change common to period and cohort. Lines join the estimates; the other basic estimable functions (longitudinal and cross-sectional age curves, fitted temporal trends) and 95% CIs are in <code>apc_ef_sites.csv</code>.</p>` +
+    `<p><b>Comparative APC.</b> CAPRICORN (MATISSE <code>@capricorn</code>; Rosenberg et al., <i>BMC Med Res Methodol</i> 2023) ported to R in <code>code/functions_capricorn.R</code>: the male and female Lexis diagrams of the selected site (same 5×5 cells) are fitted jointly by Poisson regression. Proportional models make parts of the APC model common to both: PH-L, rates parallel along birth cohorts (age and period effects shared, cohort effects differ); PH-T, parallel over time within ages (drift, period and cohort effects shared, age effects differ); PH-X, cross-sectional age curves parallel (age and cohort effects shared, period effects differ); PH-A, proportional throughout. Each is tested against the non-proportional model (NPH) by likelihood ratio and ranked by AICc. MATISSE uses Poisson tests; with national counts these reject even small differences, so overdispersion-adjusted values (deviances divided by the NPH dispersion; QAICc) are shown as <i>adj.</i> Cards show NPH estimates: the cohort rate ratio is the ratio of the fitted cohort patterns at the reference age; the local drift contrast is the ratio of the annual changes, as % per year. Mortality vs incidence compares the two Lexis diagrams of the selected site and sex over their common years (5-year periods, most recent kept), with incidence as reference: PH-A means a constant mortality-to-incidence ratio; PH-T a ratio that varies only by age, with shared time trends and cohort pattern; a negative local drift contrast means mortality falling faster (or rising slower) than incidence, consistent with improving survival. Incidence covers the registry areas and mortality the whole country, so the level of the ratio is not a case-fatality rate; its changes are what the tests assess. Homogeneity and composite tests, all estimable functions and CIs are in <code>capricorn_tests.csv</code> and <code>capricorn_ef.csv</code>.</p>` +
+    `<p><b>Countries.</b> EU-40 countries in the ECIS historical data with a common registry panel of at least 15 years (20 preferred) and at least 15 consecutive years of WHO mortality (<code>country_eligibility.csv</code>): ${COUNTRIES.length} countries. The mortality vs incidence comparison needs at least 15 years common to both.</p>` +
+    `<p><b>Data and code.</b> <code>output/dashboard/asr_onset_sites.csv</code>, <code>apc_onset_sites.csv</code>, <code>lexis_cells.csv</code>, <code>lexis_cells_1x1.csv.gz</code>, <code>apc_ef_sites.csv</code>, <code>capricorn_tests.csv</code>, <code>capricorn_ef.csv</code>, <code>country_eligibility.csv</code>, <code>dictionary.csv</code>; rebuild with <code>Rscript code/10_country_eligibility.R</code> then <code>Rscript code/08_dashboard.R</code> (all eligible countries, or name them). Generated ${esc(D.generated)}.</p>` +
+    `<p>Sources: <a href="https://ecis.jrc.ec.europa.eu" target="_blank" rel="noopener">ECIS – European Cancer Information System</a>; <a href="https://www.who.int/data/data-collection-tools/who-mortality-database" target="_blank" rel="noopener">WHO Mortality Database</a>.</p>`;
+}
+
+show();
+let raf = 0, lastW = 0;
+new ResizeObserver(([e]) => {
+  const w = Math.round(e.contentRect.width);
+  if (w === lastW) return;
+  lastW = w; cancelAnimationFrame(raf); raf = requestAnimationFrame(render);
+}).observe(document.querySelector('.wrap'));
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', render);
+new MutationObserver(render).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+</script>

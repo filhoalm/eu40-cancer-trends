@@ -1,0 +1,155 @@
+---
+title: "Lexis diagrams: cancer incidence and mortality"
+subtitle: "`r params$country`"
+date: "`r format(Sys.Date())`"
+output:
+  html_document:
+    toc: true
+    code_folding: hide
+    self_contained: true
+params:
+  country: "Germany"
+  site: "all"
+  sex: 0
+  age_min: 20
+  age_max: 84
+  delta: 5
+  panel_min_years: 20
+---
+
+<!-- Render: Rscript code/09_render_lexis.R Germany -->
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(message = FALSE, warning = FALSE, fig.width = 10, fig.height = 6.5, dpi = 150)
+library(data.table); library(ggplot2); library(here)
+source(here("code", "functions_asr.R"))
+library(matisseR)   # MATISSE port (remotes::install_github("filhoalm/matisseR"))
+
+file_inc  <- here("data", "ECIS", "ecis_historical_data.csv")
+file_mort <- here("data", "who_mortality", "data_full_history.rds")
+file_pop  <- here("data", "who_mortality", "population_full_history.rds")
+file_ctry <- here("data", "dict", "g2022_country_info.csv")
+file_site <- here("data", "dict", "site_map.csv")
+dir_out   <- here("output", "lexis")
+dir.create(dir_out, showWarnings = FALSE, recursive = TRUE)
+
+st <- fread(file_site, colClasses = "character", na.strings = NULL)[site == params$site]
+stopifnot(nrow(st) == 1, params$age_max < 85, params$delta %% 5 == 0)
+dt_ent <- st[, .(entity = strsplit(ecis_entity, ";")[[1]]), by = site]
+codes  <- as.integer(strsplit(st$who_codes, ";")[[1]])
+sexes  <- as.integer(strsplit(st$sexes, ";")[[1]])
+stopifnot(params$sex %in% c(if (length(sexes) == 2) 0L, sexes))
+
+age_groups <- (params$age_min %/% 5 + 1):(params$age_max %/% 5 + 1)
+sex_lab <- c("0" = "Both sexes", "1" = "Males", "2" = "Females")[[as.character(params$sex)]]
+tag <- tolower(gsub("\\W+", "_", paste(params$country, params$site, c("MF", "M", "F")[params$sex + 1])))
+fullname <- sprintf("%s, %s, %s", params$country, st$site_label, sex_lab)
+```
+
+## Lexis diagrams in MATISSE and here
+
+MATISSE (Rosenberg; methods in Miranda Filho & Rosenberg, *Front Oncol* 2024)
+represents a Lexis diagram as a `rates` object: an age x period array of square
+cells holding events and person-years. The functions in
+the matisseR package reproduce the MATISSE methods used in its Lexis diagram
+tutorial (`MATISSE_2_The_Lexis_Diagram.mlx`):
+
+| MATISSE | R (matisseR) | What it does |
+|---|---|---|
+| `rates(...)`, `csv2rates` | `rates_make()` | Events and Offset matrices, age and period cutpoints |
+| `chunk(r, 'AgeBlock', k, 'PerBlock', k)` | `rates_chunk()` | Aggregate into k-year blocks; leftover early years dropped (LTF) |
+| `fill(r)` | `rates_fill()` | Zero events replaced by the adaptive small value (>= 0.5) |
+| `uni(r)` | `rates_uni()` | Summary statistics |
+| `type(r, 'comp', 'lr')` | `rates_long()` | Cell rates (log scale in the plots) |
+| `lexis(r, 'pcolor')` | `lexis_plot()` | Age x period beside age x cohort, same aspect ratio |
+| `rates2csv` | `rates2csv()` | NCI APC Web Tool / MATISSE CSV file |
+
+MATISSE needs square cells. ECIS and WHO report 5-year age groups, so calendar
+years are chunked into `r params$delta`-year periods, giving
+`r params$delta` x `r params$delta` cells. Cohorts are labelled by their
+midpoint (period midpoint minus age midpoint) and span `r 2 * params$delta` years.
+
+## Data
+
+**`r fullname`**, ages `r params$age_min`-`r params$age_max`.
+
+- **Incidence**: ECIS historical data, *`r gsub(";", " + ", st$ecis_entity)`*, summed over the
+  registries reporting every year of the common panel with unchanged coverage
+  (a registry whose covered population changes by more than 20% in a year, such as
+  North Rhine-Westphalia in 2010, is treated as a new unit from that year).
+- **Mortality**: WHO Mortality Database, national,
+  `r if (length(codes)) paste0("ICD-10 ", st$icd10) else "not available for this site (no separate WHO code)"`.
+
+```{r data}
+inc   <- ecis_country_incidence(file_inc, params$country, dt_ent, params$panel_min_years)
+R_inc <- rates_fill(rates_chunk(rates_make(inc$data[params$sex == 0 | sex == params$sex], age_groups,
+                                           paste(fullname, "incidence"), "Cases"),
+                                age_block = params$delta / 5, per_block = params$delta))
+
+R_mort <- NULL
+if (length(codes)) {
+  dt_mort <- who_mortality(file_mort, file_pop, country_m49(file_ctry, params$country),
+                           data.table(site = params$site, cancer_code = codes))
+  R_mort  <- rates_fill(rates_chunk(rates_make(dt_mort[params$sex == 0 | sex == params$sex], age_groups,
+                                               paste(fullname, "mortality"), "Deaths"),
+                                    age_block = params$delta / 5, per_block = params$delta))
+}
+
+knitr::kable(rbindlist(list(rates_uni(R_inc), if (!is.null(R_mort)) rates_uni(R_mort))),
+             format.args = list(big.mark = ","), caption = "Rates objects (cf. MATISSE uni).")
+```
+
+Incidence registry panel: `r inc$panel$sel$n_registry` registries,
+`r inc$panel$sel$y0`-`r inc$panel$sel$y1` (`r paste(inc$panel$sel$registries[[1]], collapse = "; ")`).
+
+## Incidence
+
+```{r lexis-inc, fig.cap = "Incidence: log rates on the Lexis diagram (MATISSE lexis method)."}
+lexis_plot(R_inc, cols = c("#cde2fb", "#0d366b"), legend = "Incidence per 100,000")
+```
+
+## Mortality
+
+```{r lexis-mort, eval = !is.null(R_mort), fig.cap = "Mortality: log rates on the Lexis diagram (MATISSE lexis method)."}
+lexis_plot(R_mort, cols = c("#fde4d6", "#8f2d08"), legend = "Mortality per 100,000")
+```
+
+Reading the diagrams: in the left panel each column is an age group and each row
+a calendar period; in the right panel the same cells are re-stacked by birth
+cohort, so a horizontal row follows one cohort as it ages. A cohort effect shows
+as colour changing along rows on the right, a period effect along rows on the left.
+
+## Outputs for MATISSE and the NCI APC Web Tool
+
+```{r out}
+f_inc <- file.path(dir_out, sprintf("%s_incidence_%dx%d.csv", tag, params$delta, params$delta))
+rates2csv(R_inc, f_inc, R_inc$fullname, sprintf("ECIS incidence, registry panel %d-%d", inc$panel$sel$y0, inc$panel$sel$y1))
+files <- f_inc
+if (!is.null(R_mort)) {
+  f_mort <- file.path(dir_out, sprintf("%s_mortality_%dx%d.csv", tag, params$delta, params$delta))
+  rates2csv(R_mort, f_mort, R_mort$fullname, "WHO Mortality Database, national")
+  files <- c(files, f_mort)
+}
+knitr::kable(data.table(file = basename(files)))
+```
+
+Each file loads into MATISSE with `R = csv2rates('<file>.csv')` (header lines
+Title, Description, Start Year, Start Age, Interval, then paired events and
+person-years columns by period, one row per age group), and into the NCI APC Web
+Tool (<https://analysistools.cancer.gov/apc/>).
+
+## Provenance
+
+```{r prov}
+dt_files <- data.table(path = c(file_inc, file_mort, file_pop, file_site))
+dt_files[, `:=`(file = basename(path), size_mb = round(file.size(path) / 2^20, 1),
+                md5 = unname(tools::md5sum(path)), modified = format(file.mtime(path)))]
+knitr::kable(dt_files[, .(file, size_mb, md5, modified)])
+```
+
+MATISSE: Rosenberg PS, MATLAB toolbox for vital rates surveillance; methods in
+Miranda Filho A, Rosenberg PS, *Front Oncol* 2024, doi:10.3389/fonc.2023.1332429.
+
+```{r session}
+sessionInfo()
+```

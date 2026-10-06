@@ -1,0 +1,43 @@
+site,site_label,group,eo_rising,ecis_entity,who_codes,icd10,sexes,comparability,note
+all,All cancers excl. NMSC,All sites,0,All cancer entities excluding keratinocytic skin cancers,1;2;3;4;5;6;7;8;9;10;11;12;13;14;15;16;18;19;20;21;22;23;24;25;26;27;28;29;30;31;32;33;34;35;36;37;38;101,C00-C97 excl. C44,1;2,exact,
+colorectum,Colorectum,Digestive,1,Colon;Rectum,8;9,C18-C20,1;2,exact,ECIS incidence: colon + rectum carcinomas (GEP-NET excluded)
+colon,Colon,Digestive,1,Colon,8,C18,1;2,exact,ECIS incidence: carcinomas only (GEP-NET excluded); appendix C18.1 included in both
+rectum,Rectum,Digestive,1,Rectum,9,C19-C20,1;2,exact,ECIS incidence: carcinomas only
+oesophagus,Oesophagus,Digestive,1,Oesophagus,6,C15,1;2,exact,ECIS incidence: carcinomas only
+stomach,Stomach,Digestive,1,Stomach,7,C16,1;2,exact,ECIS incidence: carcinomas only (GEP-NET and lymphomas excluded)
+pancreas,Pancreas,Digestive,1,Pancreas,13,C25,1;2,exact,ECIS incidence: carcinomas only (pancreatic NET excluded)
+liver,Liver,Digestive,1,Liver,11,C22,1;2,exact,ECIS incidence: carcinomas only
+gallbladder,Gallbladder,Digestive,1,Gallbladder,12,C23,1;2,exact,
+biliary,Extrahepatic bile ducts,Digestive,1,Biliary tract,,,1;2,incidence only,WHO mortality groups C24 with other specified sites
+head_neck,"Lip, oral cavity and pharynx",Head and neck,1,"Lip, oral cavity, pharynx",1;2;3;4;5,C00-C13,1;2,approximate,WHO mortality has no separate code for C14 (pharynx unspecified)
+breast,Breast,Female,1,Breast,20,C50,2,exact,Women only
+corpus,Corpus uteri (endometrium),Female,1,Corpus uteri,24;101,C54-C55,2,exact,
+prostate,Prostate,Male,1,Prostate,27,C61,1,exact,
+kidney,Kidney,Urinary,1,Kidney,29,C64,1;2,exact,ECIS incidence: carcinomas only
+thyroid,Thyroid,Other,1,Thyroid gland,32,C73,1;2,exact,
+myeloma,Multiple myeloma,Haematological,1,Multiple myeloma,35,C90,1;2,exact,
+colorectum_anus,"Colon, rectum and anus",Digestive,0,"Colon, rectum, anus",8;9;10,C18-C21,1;2,exact,ECIS incidence: carcinomas only
+anus,Anus,Digestive,0,Anus,10,C21,1;2,exact,ECIS incidence: carcinomas only
+small_intestine,Small intestine,Digestive,0,Small Intestine,,,1;2,incidence only,WHO mortality groups C17 with other specified sites
+gep_net,Neuroendocrine tumours (GEP-NET),Digestive,0,GEP-NET,,,1;2,incidence only,"Digestive-tract neuroendocrine tumours, incl. appendix; no ICD-10 mortality equivalent"
+oral_cavity,Lip and oral cavity,Head and neck,0,"Lip, oral cavity",1,C00-C06,1;2,approximate,ECIS counts base of tongue (C01) as oropharynx; WHO includes it here
+oropharynx,Oropharynx,Head and neck,0,Oropharynx,3,C09-C10,1;2,approximate,ECIS includes base of tongue (C01); WHO mortality C09-C10 only
+nasopharynx,Nasopharynx,Head and neck,0,Nasopharynx,4,C11,1;2,exact,
+larynx,Larynx,Head and neck,0,Larynx,14,C32,1;2,exact,
+lung,"Trachea, bronchus and lung",Respiratory,0,"Trachea, brounchus, lung",15,C33-C34,1;2,exact,ECIS incidence: carcinomas only
+melanoma,Melanoma of skin,Skin,0,Melanoma,16,C43,1;2,exact,
+cervix,Cervix uteri,Female,0,Cervix uteri,23,C53,2,exact,
+ovary,Ovary,Female,0,Ovary,25,C56,2,approximate,"ECIS incidence also includes C57.0 and C48.1-2 (peritoneum); WHO mortality C56 only"
+vulva,Vulva,Female,0,Vulva,21,C51,2,exact,
+vagina,Vagina,Female,0,Vagina,22,C52,2,exact,
+testis,Testis,Male,0,Testis,28,C62,1,exact,ECIS incidence: germ cell tumours only
+penis,Penis,Male,0,Penis,26,C60,1,exact,
+bladder,Bladder,Urinary,0,Bladder,30,C67,1;2,exact,
+cns,"Brain, central nervous system",Other,0,Central Nervous system,31,C70-C72,1;2,approximate,"ECIS incidence C71-C72, C75.1, C75.3 (malignant); WHO mortality C70-C72"
+bone_sarcoma,Bone sarcoma,Sarcoma,0,Sarcoma of bone,,,1;2,incidence only,WHO mortality groups C40-C41 with other specified sites
+soft_tissue_sarcoma,Soft tissue sarcoma,Sarcoma,0,Sarcoma of soft tissues and viscera,,,1;2,incidence only,"ECIS includes sarcomas of all organs; WHO mortality groups C47/C49 with other specified sites"
+hodgkin,Hodgkin lymphoma,Haematological,0,Hodgkin lymphoma,33,C81,1;2,exact,
+nhl,Non-Hodgkin lymphoma,Haematological,0,"Non-Hodgkin lymphoma, incl. CLL",34,C82-C86 C88,1;2,approximate,"ECIS incidence includes CLL; WHO mortality codes CLL (C91.1) under leukaemia"
+leukaemia,Leukaemia,Haematological,0,Leukemias,36,C91-C95,1;2,approximate,ECIS 'Leukemias' grouping vs WHO C91-C95; CLL handling differs from the NHL entity
+lymphoblastic,Lymphoblastic leukaemia/lymphoma,Haematological,0,Lymphoblastic leukaemia,,,1;2,incidence only,WHO mortality reports leukaemia as a whole
+myeloid,Myeloid leukaemia,Haematological,0,Myeloid leukaemia,,,1;2,incidence only,WHO mortality reports leukaemia as a whole

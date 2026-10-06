@@ -1,0 +1,198 @@
+---
+title: "Early- and late-onset cancer: annual age-standardised rates"
+subtitle: "`r params$country`"
+date: "`r format(Sys.Date())`"
+output:
+  html_document:
+    toc: true
+    code_folding: hide
+    self_contained: true
+params:
+  country: "Germany"
+  entity: "All cancer entities excluding keratinocytic skin cancers"
+  mort_codes: !r c(1:16, 18:38, 101)
+  mort_label: "All cancers excl. non-melanoma skin cancer (ICD-10 C00-C97 excl. C44)"
+  age_cut: 50
+  pop_base: "SEGI"
+  panel: true
+  panel_min_years: 20
+---
+
+<!-- Render: Rscript code/07_render_asr_onset.R Germany -->
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(message = FALSE, warning = FALSE, fig.width = 9, fig.height = 6, dpi = 150)
+library(data.table); library(Rcan); library(ggplot2); library(here)
+source(here("code", "functions_asr.R"))
+
+file_inc  <- here("data", "ECIS", "ecis_historical_data.csv")
+file_mort <- here("data", "who_mortality", "data_full_history.rds")
+file_pop  <- here("data", "who_mortality", "population_full_history.rds")
+file_ctry <- here("data", "dict", "g2022_country_info.csv")
+dir_out   <- here("output", "asr_onset")
+dir.create(dir_out, showWarnings = FALSE, recursive = TRUE)
+
+country_code <- country_m49(file_ctry, params$country)
+tag       <- tolower(gsub("\\W+", "_", params$country))
+pop_lab   <- c(SEGI = "World (Segi 1960)", EURO = "Europe 1976", EURO2 = "Europe 2013", WHO = "WHO 2001")[params$pop_base]
+lab_onset <- c(early = sprintf("Early onset (<%d)", params$age_cut), late = sprintf("Late onset (%d+)", params$age_cut))
+col_ind   <- c(Incidence = "#2a78d6", Mortality = "#eb6834")
+```
+
+## Data
+
+- **Incidence**: ECIS historical data, entity *`r params$entity`*, summed over
+  ECIS registries in `r params$country` (registry areas, not the whole country).
+- **Mortality**: WHO Mortality Database deaths and population, national,
+  *`r params$mort_label`* (GLOBOCAN codes, full history from
+  `code/04_who_mortality_full_history_rebuild.R`).
+
+Age groups 0-4, ..., 80-84, 85+. In the ECIS file the 85-89/90-94/95+ rows
+repeat the 85+ total and are excluded.
+
+```{r incidence}
+dt_inc <- ecis_incidence(file_inc, params$country, params$entity)
+n_drop <- attr(dt_inc, "n_drop")
+```
+
+Registry-year-sex series dropped for incomplete age groups: **`r n_drop`**.
+
+### Common registry panel
+
+```{r panel}
+pnl    <- registry_panel(dt_inc, if (params$panel) params$panel_min_years else 1L)
+dt_sel <- pnl$sel
+dt_ry  <- pnl$coverage
+if (!params$panel) dt_ry[, used := TRUE]
+dt_inc <- merge(dt_inc, dt_ry[used == TRUE, .(registry, year)], by = c("registry", "year"))
+dt_reg <- dt_inc[, .(n_registry = uniqueN(registry)), by = year]
+```
+
+`r if (params$panel) sprintf("Selected panel: **%d registries, %d-%d (%d years)**, the period with the most person-years among those of at least %d years. Change the parameter panel_min_years to trade years for registries (table below), or set panel to false to use all registry-years.", dt_sel$n_registry, dt_sel$y0, dt_sel$y1, dt_sel$n_years, params$panel_min_years) else "Panel off: all registry-years used; the registry mix changes over time."`
+
+```{r panel-options}
+dt_opt <- pnl$cand[order(-py)][, .SD[1], by = n_years][order(-n_years)][n_years >= 10]
+dt_opt <- dt_opt[!duplicated(sapply(registries, paste, collapse = "|"))]
+knitr::kable(dt_opt[, .(period = sprintf("%d-%d", y0, y1), years = n_years, registries = n_registry,
+                        mean_pop_m = round(py / n_years / 1e6, 1),
+                        selected = fifelse(params$panel & y0 == dt_sel$y0 & y1 == dt_sel$y1, "yes", ""))],
+             col.names = c("Period", "Years", "Registries", "Mean population (M)", "Selected"),
+             caption = "Longest period for each common registry set (>= 10 years).")
+```
+
+```{r fig-cov, fig.height = max(2.5, 0.28 * uniqueN(dt_ry$registry) + 1.2), fig.cap = "ECIS incidence registry-years: used (panel) vs not used."}
+ggplot(dt_ry, aes(year, reorder(registry, -year, FUN = max), fill = fifelse(used, "Used", "Not used"))) +
+  geom_tile(colour = "white", linewidth = 0.4) +
+  scale_fill_manual(values = c(Used = "#2a78d6", `Not used` = "#c3c2b7")) +
+  labs(x = NULL, y = NULL, fill = NULL) +
+  theme_minimal(base_size = 10) +
+  theme(legend.position = "top", panel.grid = element_blank())
+```
+
+```{r mortality}
+dt_mort <- who_mortality(file_mort, file_pop, country_code, data.table(site = "all", cancer_code = params$mort_codes))
+```
+
+## Age-standardised rates
+
+Truncated ASR per 100,000 person-years, standardised to the `r pop_lab`
+population over each age range (`Rcan::csu_asr`). Early onset: ages
+0-`r params$age_cut - 1`; late onset: `r params$age_cut`+. 95% CI = ASR &plusmn; 1.96 SE.
+Incidence covers the registry panel areas; mortality covers the whole country.
+
+```{r asr, results = "hide"}
+dt_data <- rbind(dt_inc[, .(indicator = "Incidence", cases = sum(cases), py = sum(py)), by = .(year, sex, age)],
+                 dt_mort[, .(indicator = "Mortality", year, sex, age, cases, py)], use.names = TRUE)
+
+## truncated ASR: age groups 1-10 (0-49) and 11-18 (50+)
+grp_cut <- params$age_cut %/% 5
+dt_asr  <- rbind(
+  Rcan::csu_asr(dt_data, group_by = c("indicator", "year", "sex"), first_age = 1, last_age = grp_cut,
+                pop_base = params$pop_base, var_st_err = "se")[, onset := "early"],
+  Rcan::csu_asr(dt_data, group_by = c("indicator", "year", "sex"), first_age = grp_cut + 1, last_age = 18,
+                pop_base = params$pop_base, var_st_err = "se")[, onset := "late"])
+dt_asr[, `:=`(asr_lo = pmax(asr - 1.96 * se, 0), asr_hi = asr + 1.96 * se)]
+dt_asr  <- merge(dt_asr, dt_reg[, .(indicator = "Incidence", year, n_registry)], by = c("indicator", "year"), all.x = TRUE)
+dt_asr[, `:=`(onset = factor(lab_onset[onset], lab_onset), sex_label = factor(sex, 1:2, c("Male", "Female")))]
+```
+
+```{r fig-asr, fig.cap = "Annual truncated ASR with 95% CI, by onset age group and sex."}
+fig_asr <- ggplot(dt_asr, aes(year, asr, colour = indicator, fill = indicator, linetype = indicator)) +
+  geom_ribbon(aes(ymin = asr_lo, ymax = asr_hi), alpha = 0.15, colour = NA) +
+  geom_line(linewidth = 0.7) +
+  facet_grid(onset ~ sex_label, scales = "free_y") +
+  scale_colour_manual(values = col_ind, aesthetics = c("colour", "fill")) +
+  scale_linetype_manual(values = c(Incidence = "solid", Mortality = "22")) +
+  scale_y_continuous(limits = c(0, NA), expand = expansion(mult = c(0, 0.05))) +
+  labs(x = NULL, y = sprintf("ASR %s per 100,000", pop_lab), colour = NULL, fill = NULL, linetype = NULL,
+       title = sprintf("%s: %s", params$country, params$entity),
+       caption = sprintf("Incidence: ECIS, %s. Mortality: WHO Mortality Database, national. Ribbons: 95%% CI.",
+                         if (params$panel) sprintf("%d registries common to %d-%d", dt_sel$n_registry, dt_sel$y0, dt_sel$y1)
+                         else "all registry-years")) +
+  theme_minimal(base_size = 11) +
+  theme(legend.position = "top", panel.grid.minor = element_blank(), panel.grid.major.x = element_blank(),
+        panel.grid.major.y = element_line(colour = "#e1e0d9"), panel.spacing = unit(1.2, "lines"),
+        strip.text = element_text(face = "bold"), plot.caption = element_text(colour = "#52514e"),
+        plot.title.position = "plot")
+
+ggsave(file.path(dir_out, sprintf("asr_onset_%s.png", tag)), fig_asr, width = 9, height = 6, dpi = 300, bg = "white")
+fig_asr
+```
+
+```{r tab}
+dt_tab <- dt_asr[order(year), .(years = sprintf("%d-%d", min(year), max(year)),
+                                asr_first = round(first(asr), 1), asr_last = round(last(asr), 1)),
+                 by = .(onset, sex = sex_label, indicator)]
+knitr::kable(dt_tab, col.names = c("Onset", "Sex", "Indicator", "Years", "ASR first year", "ASR last year"))
+```
+
+## Outputs
+
+```{r out}
+dt_out <- dt_asr[, .(country = params$country, country_code, indicator,
+                     source = fifelse(indicator == "Incidence", "ECIS", "WHO"),
+                     area = fifelse(indicator == "Incidence", "ECIS registry areas", "National"),
+                     entity = fifelse(indicator == "Incidence", params$entity, params$mort_label),
+                     onset = as.character(onset), age_from = fifelse(onset == lab_onset[["early"]], 0L, params$age_cut),
+                     age_to = fifelse(onset == lab_onset[["early"]], params$age_cut - 1L, NA_integer_),
+                     sex, year, cases, py, asr, se, asr_lo, asr_hi, n_registry, pop_base = params$pop_base)]
+setorder(dt_out, indicator, onset, sex, year)
+fwrite(dt_out, file.path(dir_out, sprintf("asr_onset_%s.csv", tag)))
+fwrite(dt_ry[, .(country = params$country, registry, year, py, used)][order(registry, year)],
+       file.path(dir_out, sprintf("asr_onset_%s_registries.csv", tag)))
+
+dt_dict <- data.table(
+  file = c(rep("asr_onset_<country>.csv", ncol(dt_out)), rep("asr_onset_<country>_registries.csv", 5)),
+  variable = c(names(dt_out), "country", "registry", "year", "py", "used"),
+  description = c("ECIS country name", "UN M49 country code", "Incidence or Mortality", "Data source",
+                  "Population covered", "Cancer entity definition", "Onset age group", "Lower age bound (years)",
+                  "Upper age bound (years); NA = open-ended", "1 = male, 2 = female",
+                  "Calendar year of diagnosis or death", "Cases or deaths in the age range",
+                  "Person-years in the age range", "Truncated age-standardised rate per 100,000",
+                  "Standard error of asr", "Lower 95% CI (asr - 1.96 se, floored at 0)", "Upper 95% CI (asr + 1.96 se)",
+                  "ECIS registries contributing (incidence only)", "Standard population (Rcan pop_base)",
+                  "ECIS country name", "ECIS registry", "Calendar year", "Person-years, all ages and sexes",
+                  "TRUE if the registry-year is in the incidence panel"))
+fwrite(dt_dict, file.path(dir_out, "asr_onset_dictionary.csv"))
+
+knitr::kable(data.table(file = list.files(dir_out, pattern = sprintf("^asr_onset_(%s|dictionary)", tag))))
+```
+
+## Provenance
+
+```{r prov}
+dt_files <- data.table(path = c(file_inc, file_mort, file_pop, file_ctry))
+dt_files[, `:=`(file = basename(path), size_mb = round(file.size(path) / 2^20, 1),
+                md5 = unname(tools::md5sum(path)), modified = format(file.mtime(path)))]
+knitr::kable(dt_files[, .(file, size_mb, md5, modified)])
+```
+
+Sources: ECIS - European Cancer Information System, historical data
+(<https://ecis.jrc.ec.europa.eu>; entity definitions
+<https://ecis.jrc.ec.europa.eu/definitions-cancer-entities>). WHO Mortality
+Database (<https://www.who.int/data/data-collection-tools/who-mortality-database>),
+cause codes mapped to GLOBOCAN cancer codes (`data/dict/cancer_dict.json`).
+
+```{r session}
+sessionInfo()
+```
